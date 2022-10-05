@@ -9,6 +9,14 @@ import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { IBrowserWorkbenchEnvironmentService } from 'vs/workbench/services/environment/browser/environmentService';
 import { IHostService } from 'vs/workbench/services/host/browser/host';
 import { Disposable } from 'vs/base/common/lifecycle';
+import product from 'vs/platform/product/common/product';
+import { MenuId, Action2, registerAction2 } from 'vs/platform/actions/common/actions';
+import { ServicesAccessor } from 'vs/editor/browser/editorExtensions';
+import { IOpenerService } from 'vs/platform/opener/common/opener';
+import { IProductService } from 'vs/platform/product/common/productService';
+import { IsWebContext } from 'vs/platform/contextkey/common/contextkeys';
+import { localize } from 'vs/nls';
+import { URI } from 'vs/base/common/uri';
 
 export interface IUpdate {
 	version: string;
@@ -97,3 +105,35 @@ export class BrowserUpdateService extends Disposable implements IUpdateService {
 }
 
 registerSingleton(IUpdateService, BrowserUpdateService, false);
+
+class DownloadAction extends Action2 {
+
+	static readonly ID = 'workbench.action.download';
+	static readonly AVAILABLE = !!product.downloadUrl;
+
+	constructor() {
+		super({
+			id: DownloadAction.ID,
+			title: {
+				value: localize('openDownloadPage', "Download {0}", product.nameLong),
+				original: `Download ${product.downloadUrl}`
+			},
+			precondition: IsWebContext, // Only show when running in a web browser
+			f1: true,
+			menu: [{
+				id: MenuId.StatusBarRemoteIndicatorMenu,
+			}]
+		});
+	}
+
+	run(accessor: ServicesAccessor): void {
+		const productService = accessor.get(IProductService);
+		const openerService = accessor.get(IOpenerService);
+
+		if (productService.downloadUrl) {
+			openerService.open(URI.parse(productService.downloadUrl));
+		}
+	}
+}
+
+registerAction2(DownloadAction);
